@@ -3,8 +3,9 @@
 /**
  * This is an example ROS 2 node that implements a simple pose SLAM algorithm using GTSAM.
  *
- * The node subscribes to odometry and point cloud topics and performs ICP on the point clouds to estimate the transformation between them.
- * The estimated transformation is then used to update the factor graph in GTSAM. The node also publishes the optimized poses as a path.
+ * The node subscribes to a pointcloud topic and performs ICP to estimate the transformation between consecutive point clouds.
+ * These transformations are used to add pose constraints to the factor graph in GTSAM. The estimated transformation is then used to update
+ * the factor graph in GTSAM. The node also publishes the optimized poses as a path.
  */
 
 namespace poseslam
