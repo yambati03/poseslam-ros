@@ -9,6 +9,12 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <build_depend>cxxopts</build_depend>
+  <build_depend>GTSAM</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

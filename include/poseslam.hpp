@@ -3,6 +3,7 @@
 
 #include <mutex>
 #include <iostream>
+#include <queue>
 #include <rclcpp/rclcpp.hpp>
 
 #include <gtsam/geometry/Rot3.h>
@@ -16,31 +17,31 @@
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/linear/NoiseModel.h>
 
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
 namespace poseslam
 {
     class PoseSlam : public rclcpp::Node
     {
     public:
-        PoseSlam();
+        explicit PoseSlam(const rclcpp::NodeOptions &options);
         ~PoseSlam();
 
     private:
-        void odom_callback(const nav_msgs::Odometry::SharedPtr msg);
-        void pointcloud_callback(const sensor_msgs::PointCloud2::SharedPtr msg);
-        void add_odom_factor();
+        void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+        void add_pose_constraint(Eigen::Matrix<double, 4, 4> H);
 
         std::mutex pBufLock;
         std::queue<Eigen::MatrixXd> pointcloudBuf;
         std::queue<Eigen::Matrix<double, 4, 4>> transformBuf;
 
-        ISAM2 *gisam;
-        Values gisamCurrentEstimate;
-        ISAM2Params gparameters;
-        NonlinearFactorGraph f_graph_;
+        gtsam::ISAM2 *gisam;
+        gtsam::Values gisamCurrentEstimate;
+        gtsam::ISAM2Params gparameters;
+        gtsam::NonlinearFactorGraph f_graph_;
 
-        rclcpp::Subscription<nav_msgs::Odometry>::SharedPtr odom_sub;
-        rclcpp::Subscription<sensor_msgs::PointCloud2>::SharedPtr pointcloud_sub;
-    }
+        rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub;
+    };
 } // namespace poseslam
 
 #endif // POSE_SLAM_HPP_

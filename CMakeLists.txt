@@ -7,9 +7,68 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(Eigen3 CONFIG REQUIRED)
+find_package(cxxopts REQUIRED)
+find_package(nanoflann REQUIRED)
+find_package(GTSAM REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(PCL 1.10 REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+include_directories(
+  include
+  ${PCL_INCLUDE_DIRS}
+)
+
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+add_library(${PROJECT_NAME} SHARED
+  src/simpleicp.cpp
+  src/pointcloud.cpp
+  src/corrpts.cpp
+  src/poseslam.cpp
+)
+
+set(dependencies
+  rclcpp
+  rclcpp_components
+  cxxopts
+  nanoflann
+  sensor_msgs
+  pcl_conversions
+)
+
+ament_target_dependencies(${PROJECT_NAME}
+  ${dependencies}
+)
+
+target_link_libraries(${PROJECT_NAME} Eigen3::Eigen ${PCL_LIBRARIES})
+
+# Install launch files.
+install(
+  DIRECTORY
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+# Install library
+install(TARGETS
+  ${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+rclcpp_components_register_node(
+  ${PROJECT_NAME}
+  PLUGIN "poseslam::PoseSlam"
+  EXECUTABLE ${PROJECT_NAME}_PoseSlam
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
