@@ -16,6 +16,70 @@ namespace poseslam
     PoseSlam::PoseSlam(const rclcpp::NodeOptions &options) : Node("pose_slam", options)
     {
         pointcloud_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>("pointcloud", 1, std::bind(&PoseSlam::pointcloud_callback, this, std::placeholders::_1));
+
+        // Initialize the iSAM2 optimizer
+        isam_params = gtsam::ISAM2Params();
+        isam_params.relinearizeThreshold = 0.1;
+        isam_params.relinearizeSkip = 1;
+
+        isam = new gtsam::ISAM2(isam_params);
+
+        // Initialize the key poses
+        key_poses_3d = pcl::PointCloud<pcl::PointXYZI>::Ptr(new pcl::PointCloud<pcl::PointXYZI>());
+        key_poses_6d = pcl::PointCloud<PointTypePose>::Ptr(new pcl::PointCloud<PointTypePose>());
+
+        // Call update_and_correct() in a separate thread. This is the main loop that will
+        // update the factor graph and optimize the poses.
+        std::thread([this]()
+                    {
+                        while (rclcpp::ok())
+                        {
+                            update_and_correct();
+                            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        } })
+            .detach();
+    }
+
+    void PoseSlam::update_and_correct()
+    {
+        if (transform_buf.empty())
+            return;
+
+        // Get the latest transformation matrix from the queue
+        t_buf_lock.lock();
+        auto H = transform_buf.front();
+        t_buf_lock.unlock();
+
+        // Add the pose constraint to the factor graph
+        add_pose_constraint(H);
+
+        // Add the factor graph to the optimizer
+        isam->update(f_graph_, isam_initial_estimate);
+        isam->update();
+
+        // Clear the factor graph and initial estimate for the next iteration
+        f_graph_.resize(0);
+        isam_initial_estimate.clear();
+
+        pcl::PointXYZI this_pose_3d;
+        gtsam::Pose3 latest_estimate;
+
+        // Get the latest estimate from iSAM2 optimizer
+        isam_current_estimate = isam->calculateEstimate();
+        latest_estimate = isam_current_estimate.at<gtsam::Pose3>(isam_current_estimate.size() - 1);
+
+        // Populate thisPose3D with translation data
+        this_pose_3d.x = latest_estimate.translation().x();
+        this_pose_3d.y = latest_estimate.translation().y();
+        this_pose_3d.z = latest_estimate.translation().z();
+        this_pose_3d.intensity = key_poses_3d->size(); // Use intensity as index
+        key_poses_3d->push_back(this_pose_3d);
+
+        // Use the new constructor to create thisPose6D directly
+        PointTypePose this_pose_6d(latest_estimate, this_pose_3d.intensity, curr_time_);
+        key_poses_6d->push_back(this_pose_6d);
+
+        last_pose_ = this_pose_6d;
     }
 
     void PoseSlam::pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
@@ -24,7 +88,9 @@ namespace poseslam
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::fromROSMsg(*msg, *cloud);
 
-        if (!pointcloudBuf.empty())
+        curr_time_ = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
+
+        if (!pointcloud_buf.empty())
         {
             // Convert pointcloud to Eigen::MatrixXd for further processing
             Eigen::MatrixXd X_fix(cloud->size(), 3);
@@ -36,10 +102,10 @@ namespace poseslam
             }
 
             // Get the last point cloud from the queue
-            pBufLock.lock();
-            auto X_mov = pointcloudBuf.front();
-            pointcloudBuf.pop();
-            pBufLock.unlock();
+            p_buf_lock.lock();
+            auto X_mov = pointcloud_buf.front();
+            pointcloud_buf.pop();
+            p_buf_lock.unlock();
 
             Eigen::Matrix<double, 4, 4> H = SimpleICP(
                 X_fix,
@@ -53,12 +119,14 @@ namespace poseslam
             );
 
             // Save the transformation matrix to the queue
-            transformBuf.push(H);
+            t_buf_lock.lock();
+            transform_buf.push(H);
+            t_buf_lock.unlock();
 
             // Save the point cloud data to the queue
-            pBufLock.lock();
-            pointcloudBuf.push(X_fix);
-            pBufLock.unlock();
+            p_buf_lock.lock();
+            pointcloud_buf.push(X_fix);
+            p_buf_lock.unlock();
         }
     }
 

@@ -73,9 +73,13 @@ namespace poseslam
         void append_to_path(const PointTypePose &pose_in);
         gtsam::Pose3 point_type_to_gtsam_pose(PointTypePose &pose_in);
 
-        std::mutex pBufLock;
-        std::queue<Eigen::MatrixXd> pointcloudBuf;
-        std::queue<Eigen::Matrix<double, 4, 4>> transformBuf;
+        void update_and_correct();
+
+        std::mutex p_buf_lock;
+        std::mutex t_buf_lock;
+
+        std::queue<Eigen::MatrixXd> pointcloud_buf;
+        std::queue<Eigen::Matrix<double, 4, 4>> transform_buf;
 
         gtsam::ISAM2 *isam;
         gtsam::Values isam_initial_estimate;
@@ -86,9 +90,10 @@ namespace poseslam
         // We hold key poses in a PCL pointcloud type since PCL has nice helper functions
         // to construct a KD tree from a pointcloud. This allows us to efficiently query the
         // spatial distance between two poses.
-        pcl::PointCloud<pcl::PointXYZ>::Ptr key_poses_3d;
+        pcl::PointCloud<pcl::PointXYZI>::Ptr key_poses_3d;
         pcl::PointCloud<PointTypePose>::Ptr key_poses_6d;
         PointTypePose last_pose_;
+        double curr_time_;
 
         nav_msgs::msg::Path global_path;
 
