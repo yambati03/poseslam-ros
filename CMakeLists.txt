@@ -16,9 +16,9 @@ find_package(GTSAM REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(PCL 1.10 REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 
 include_directories(
   include
@@ -41,7 +41,10 @@ set(dependencies
   cxxopts
   nanoflann
   sensor_msgs
+  nav_msgs
   pcl_conversions
+  geometry_msgs
+  tf2
 )
 
 ament_target_dependencies(${PROJECT_NAME}
