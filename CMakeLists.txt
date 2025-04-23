@@ -45,13 +45,14 @@ set(dependencies
   pcl_conversions
   geometry_msgs
   tf2
+  GTSAM
 )
 
 ament_target_dependencies(${PROJECT_NAME}
   ${dependencies}
 )
 
-target_link_libraries(${PROJECT_NAME} Eigen3::Eigen ${PCL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} Eigen3::Eigen gtsam ${PCL_LIBRARIES})
 
 # Install launch files.
 install(

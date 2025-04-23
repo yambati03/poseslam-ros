@@ -15,6 +15,7 @@ namespace poseslam
 {
     PoseSlam::PoseSlam(const rclcpp::NodeOptions &options) : Node("pose_slam", options)
     {
+        RCLCPP_INFO(this->get_logger(), "Poseslam node started...");
         pointcloud_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>("pointcloud", 1, std::bind(&PoseSlam::pointcloud_callback, this, std::placeholders::_1));
 
         // Initialize the iSAM2 optimizer
@@ -80,6 +81,11 @@ namespace poseslam
         key_poses_6d->push_back(this_pose_6d);
 
         last_pose_ = this_pose_6d;
+    }
+
+    PoseSlam::~PoseSlam()
+    {
+        delete isam;
     }
 
     void PoseSlam::pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
