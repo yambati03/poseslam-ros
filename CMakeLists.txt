@@ -19,6 +19,7 @@ find_package(PCL 1.10 REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 include_directories(
   include
@@ -46,6 +47,7 @@ set(dependencies
   geometry_msgs
   tf2
   GTSAM
+  tf2_ros
 )
 
 ament_target_dependencies(${PROJECT_NAME}

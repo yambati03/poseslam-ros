@@ -1,3 +1,4 @@
 pose_slam:
   ros__parameters:
     pointcloud_topic: "/cloud_unstructured_fullframe"
+    update_rate_hz: 100.0

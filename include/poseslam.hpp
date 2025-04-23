@@ -33,6 +33,8 @@
 
 #include <Eigen/Dense>
 
+#include "tf2_ros/transform_broadcaster.h"
+
 struct PointTypePose
 {
     PCL_ADD_POINT4D; // PCL macro to add x, y, and z fields to the custom point type
@@ -78,6 +80,9 @@ namespace poseslam
         void update_and_correct();
         void correct_poses();
 
+        void publish_transform(PointTypePose pose, std::string frame_id, std::string child_frame_id);
+        void filterSphere(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float radius);
+
         std::mutex p_buf_lock;
         std::mutex t_buf_lock;
 
@@ -95,6 +100,10 @@ namespace poseslam
         // spatial distance between two poses.
         pcl::PointCloud<pcl::PointXYZI>::Ptr key_poses_3d;
         pcl::PointCloud<PointTypePose>::Ptr key_poses_6d;
+
+        std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+        Eigen::MatrixXd last_pointcloud_;
         PointTypePose last_pose_;
         double curr_time_;
 
@@ -104,7 +113,8 @@ namespace poseslam
         rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub;
 
         std::string pointcloud_topic_;
+        double update_rate_hz_;
     };
-} // namespace poseslam
+} // namespace pose slam
 
 #endif // POSE_SLAM_HPP_
