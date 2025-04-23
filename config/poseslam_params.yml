@@ -1,0 +1,3 @@
+pose_slam:
+  ros__parameters:
+    pointcloud_topic: "/cloud_unstructured_fullframe"

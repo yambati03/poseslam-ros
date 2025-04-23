@@ -67,6 +67,8 @@ namespace poseslam
         ~PoseSlam();
 
     private:
+        void read_parameters();
+
         void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
         void add_pose_constraint(Eigen::Matrix<double, 4, 4> H);
 
@@ -74,6 +76,7 @@ namespace poseslam
         gtsam::Pose3 point_type_to_gtsam_pose(PointTypePose &pose_in);
 
         void update_and_correct();
+        void correct_poses();
 
         std::mutex p_buf_lock;
         std::mutex t_buf_lock;
@@ -99,6 +102,8 @@ namespace poseslam
 
         rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub;
         rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub;
+
+        std::string pointcloud_topic_;
     };
 } // namespace poseslam
 

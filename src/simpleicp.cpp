@@ -16,13 +16,13 @@ Eigen::Matrix<double, 4, 4> SimpleICP(const Eigen::MatrixXd &X_fix,
 {
   auto start = std::chrono::system_clock::now();
 
-  printf("Create point cloud objects ...\n");
+  // printf("Create point cloud objects ...\n");
   PointCloud pc_fix{X_fix};
   PointCloud pc_mov{X_mov};
 
   if (max_overlap_distance > 0)
   {
-    printf("Consider partial overlap of point clouds ...\n");
+    // printf("Consider partial overlap of point clouds ...\n");
     pc_fix.SelectInRange(pc_mov.X(), max_overlap_distance);
     if (pc_fix.GetIdxOfSelectedPts().size() == 0)
     {
@@ -36,10 +36,10 @@ Eigen::Matrix<double, 4, 4> SimpleICP(const Eigen::MatrixXd &X_fix,
     }
   }
 
-  printf("Select points for correspondences in fixed point cloud ...\n");
+  // printf("Select points for correspondences in fixed point cloud ...\n");
   pc_fix.SelectNPts(correspondences);
 
-  printf("Estimate normals of selected points ...\n");
+  // printf("Estimate normals of selected points ...\n");
   pc_fix.EstimateNormals(neighbors);
 
   // Initialization
@@ -50,7 +50,7 @@ Eigen::Matrix<double, 4, 4> SimpleICP(const Eigen::MatrixXd &X_fix,
   std::vector<double> residual_dists_mean;
   std::vector<double> residual_dists_std;
 
-  printf("Start iterations ...\n");
+  // printf("Start iterations ...\n");
   for (int i = 0; i < max_iterations; i++)
   {
     CorrPts cp = CorrPts(pc_fix, pc_mov);
@@ -73,56 +73,56 @@ Eigen::Matrix<double, 4, 4> SimpleICP(const Eigen::MatrixXd &X_fix,
     {
       if (CheckConvergenceCriteria(residual_dists_mean, residual_dists_std, min_change))
       {
-        printf("Convergence criteria fulfilled -> stop iteration!\n");
+        // printf("Convergence criteria fulfilled -> stop iteration!\n");
         break;
       }
     }
 
-    if (i == 0)
-    {
-      printf("%9s | %15s | %15s | %15s\n",
-             "Iteration",
-             "correspondences",
-             "mean(residuals)",
-             "std(residuals)");
-      printf("%9s | %15d | %15.4f | %15.4f\n",
-             "orig:0",
-             int(initial_dists.size()),
-             initial_dists.mean(),
-             Std(initial_dists));
-    }
-    printf("%9d | %15d | %15.4f | %15.4f\n",
-           i + 1,
-           int(residual_dists.size()),
-           residual_dists_mean.back(),
-           residual_dists_std.back());
+    // if (i == 0)
+    // {
+    //   printf("%9s | %15s | %15s | %15s\n",
+    //          "Iteration",
+    //          "correspondences",
+    //          "mean(residuals)",
+    //          "std(residuals)");
+    //   printf("%9s | %15d | %15.4f | %15.4f\n",
+    //          "orig:0",
+    //          int(initial_dists.size()),
+    //          initial_dists.mean(),
+    //          Std(initial_dists));
+    // }
+    // printf("%9d | %15d | %15.4f | %15.4f\n",
+    //        i + 1,
+    //        int(residual_dists.size()),
+    //        residual_dists_mean.back(),
+    //        residual_dists_std.back());
   }
 
-  printf("Estimated transformation matrix H:\n");
-  printf("[%12.6f %12.6f %12.6f %12.6f]\n",
-         H_new(0, 0),
-         H_new(0, 1),
-         H_new(0, 2),
-         H_new(0, 3));
-  printf("[%12.6f %12.6f %12.6f %12.6f]\n",
-         H_new(1, 0),
-         H_new(1, 1),
-         H_new(1, 2),
-         H_new(1, 3));
-  printf("[%12.6f %12.6f %12.6f %12.6f]\n",
-         H_new(2, 0),
-         H_new(2, 1),
-         H_new(2, 2),
-         H_new(2, 3));
-  printf("[%12.6f %12.6f %12.6f %12.6f]\n",
-         H_new(3, 0),
-         H_new(3, 1),
-         H_new(3, 2),
-         H_new(3, 3));
+  // printf("Estimated transformation matrix H:\n");
+  // printf("[%12.6f %12.6f %12.6f %12.6f]\n",
+  //        H_new(0, 0),
+  //        H_new(0, 1),
+  //        H_new(0, 2),
+  //        H_new(0, 3));
+  // printf("[%12.6f %12.6f %12.6f %12.6f]\n",
+  //        H_new(1, 0),
+  //        H_new(1, 1),
+  //        H_new(1, 2),
+  //        H_new(1, 3));
+  // printf("[%12.6f %12.6f %12.6f %12.6f]\n",
+  //        H_new(2, 0),
+  //        H_new(2, 1),
+  //        H_new(2, 2),
+  //        H_new(2, 3));
+  // printf("[%12.6f %12.6f %12.6f %12.6f]\n",
+  //        H_new(3, 0),
+  //        H_new(3, 1),
+  //        H_new(3, 2),
+  //        H_new(3, 3));
 
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
-  printf("Finished in %.3f seconds!\n", elapsed_seconds.count());
+  // printf("Finished in %.3f seconds!\n", elapsed_seconds.count());
 
   return H_new;
 }

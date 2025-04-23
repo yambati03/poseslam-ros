@@ -16,7 +16,10 @@ namespace poseslam
     PoseSlam::PoseSlam(const rclcpp::NodeOptions &options) : Node("pose_slam", options)
     {
         RCLCPP_INFO(this->get_logger(), "Poseslam node started...");
-        pointcloud_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>("pointcloud", 1, std::bind(&PoseSlam::pointcloud_callback, this, std::placeholders::_1));
+        read_parameters();
+
+        pointcloud_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>(pointcloud_topic_, 1, std::bind(&PoseSlam::pointcloud_callback, this, std::placeholders::_1));
+        path_pub = this->create_publisher<nav_msgs::msg::Path>("/optimized_path", 1);
 
         // Initialize the iSAM2 optimizer
         isam_params = gtsam::ISAM2Params();
@@ -44,7 +47,10 @@ namespace poseslam
     void PoseSlam::update_and_correct()
     {
         if (transform_buf.empty())
+        {
+            RCLCPP_WARN(this->get_logger(), "No transformation matrix available in the buffer.");
             return;
+        }
 
         // Get the latest transformation matrix from the queue
         t_buf_lock.lock();
@@ -80,7 +86,39 @@ namespace poseslam
         PointTypePose this_pose_6d(latest_estimate, this_pose_3d.intensity, curr_time_);
         key_poses_6d->push_back(this_pose_6d);
 
+        // Update the global path with the latest pose and publish it
+        append_to_path(this_pose_6d);
+        global_path.header.stamp = rclcpp::Time(curr_time_);
+        global_path.header.frame_id = "world";
+        path_pub->publish(global_path);
+
         last_pose_ = this_pose_6d;
+        correct_poses();
+    }
+
+    void PoseSlam::correct_poses()
+    {
+        if (key_poses_3d->points.empty())
+            return;
+
+        int num_poses = isam_current_estimate.size();
+        global_path.poses.clear();
+
+        for (int i = 0; i < num_poses; ++i)
+        {
+            key_poses_3d->points[i].x = isam_current_estimate.at<gtsam::Pose3>(i).translation().x();
+            key_poses_3d->points[i].y = isam_current_estimate.at<gtsam::Pose3>(i).translation().y();
+            key_poses_3d->points[i].z = isam_current_estimate.at<gtsam::Pose3>(i).translation().z();
+
+            key_poses_6d->points[i].x = key_poses_3d->points[i].x;
+            key_poses_6d->points[i].y = key_poses_3d->points[i].y;
+            key_poses_6d->points[i].z = key_poses_3d->points[i].z;
+            key_poses_6d->points[i].roll = isam_current_estimate.at<gtsam::Pose3>(i).rotation().roll();
+            key_poses_6d->points[i].pitch = isam_current_estimate.at<gtsam::Pose3>(i).rotation().pitch();
+            key_poses_6d->points[i].yaw = isam_current_estimate.at<gtsam::Pose3>(i).rotation().yaw();
+
+            append_to_path(key_poses_6d->points[i]);
+        }
     }
 
     PoseSlam::~PoseSlam()
@@ -96,17 +134,17 @@ namespace poseslam
 
         curr_time_ = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
 
+        // Convert pointcloud to Eigen::MatrixXd for further processing
+        Eigen::MatrixXd X_fix(cloud->size(), 3);
+        for (uint i = 0; i < cloud->size(); i++)
+        {
+            X_fix(i, 0) = cloud->points[i].x;
+            X_fix(i, 1) = cloud->points[i].y;
+            X_fix(i, 2) = cloud->points[i].z;
+        }
+
         if (!pointcloud_buf.empty())
         {
-            // Convert pointcloud to Eigen::MatrixXd for further processing
-            Eigen::MatrixXd X_fix(cloud->size(), 3);
-            for (uint i = 0; i < cloud->size(); i++)
-            {
-                X_fix(i, 0) = cloud->points[i].x;
-                X_fix(i, 1) = cloud->points[i].y;
-                X_fix(i, 2) = cloud->points[i].z;
-            }
-
             // Get the last point cloud from the queue
             p_buf_lock.lock();
             auto X_mov = pointcloud_buf.front();
@@ -128,12 +166,12 @@ namespace poseslam
             t_buf_lock.lock();
             transform_buf.push(H);
             t_buf_lock.unlock();
-
-            // Save the point cloud data to the queue
-            p_buf_lock.lock();
-            pointcloud_buf.push(X_fix);
-            p_buf_lock.unlock();
         }
+
+        // Add the current point cloud to the buffer
+        p_buf_lock.lock();
+        pointcloud_buf.push(X_fix);
+        p_buf_lock.unlock();
     }
 
     void PoseSlam::add_pose_constraint(Eigen::Matrix<double, 4, 4> H)
@@ -176,6 +214,19 @@ namespace poseslam
     gtsam::Pose3 PoseSlam::point_type_to_gtsam_pose(PointTypePose &pose_in)
     {
         return gtsam::Pose3(gtsam::Rot3::Ypr(pose_in.yaw, pose_in.pitch, pose_in.roll), gtsam::Point3(pose_in.x, pose_in.y, pose_in.z));
+    }
+
+    void PoseSlam::read_parameters()
+    {
+        this->declare_parameter("pointcloud_topic", "/pointcloud");
+
+        if (!this->get_parameter("pointcloud_topic", pointcloud_topic_))
+        {
+            RCLCPP_ERROR(this->get_logger(), "Could not read parameter pointcloud_topic.");
+            return;
+        }
+
+        RCLCPP_INFO(this->get_logger(), "Pointcloud topic: %s", pointcloud_topic_.c_str());
     }
 }
 

@@ -57,6 +57,8 @@ target_link_libraries(${PROJECT_NAME} Eigen3::Eigen gtsam ${PCL_LIBRARIES})
 # Install launch files.
 install(
   DIRECTORY
+  config
+  launch
   DESTINATION share/${PROJECT_NAME}/
 )
 
